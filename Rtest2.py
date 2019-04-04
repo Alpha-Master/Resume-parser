@@ -49,27 +49,40 @@ def convert(fname):
             fake_file_handle.close()
             
 import spacy
-
-def extract_name(text):
-    text = text.split("\n")
+import nltk
+def extract_name(Otext):
+    temp=0
+    text = Otext.split("\n")
     text = [x.lstrip() for x in text]
     while('' in text) : 
         text.remove('') 
-    print(text[0])
     
-    
+    for sent in nltk.sent_tokenize(Otext):
+        for chunk in nltk.ne_chunk(nltk.pos_tag(nltk.word_tokenize(sent))):
+            if hasattr(chunk, 'label'):
+                    l =(' '.join(c[0] for c in chunk))
+                    if(chunk.label()=='PERSON' and not temp):
+                        name=l
+                        temp=1
+                    if(l in text[0] or text[0] in l):
+                        return text[0]
+    return name
+        
+    #print("Name :"+str(temp))
+
 import re
 
 def extract_mobile_number(text):
     text = text.split("\n")
     for w in text:
         w= w.replace('·','-')
-        phone = re.findall(re.compile(r'(?:(?:\+?([1-9]|[0-9][0-9]|[0-9][0-9][0-9])\s*(?:[.-]\s*)?)?(?:\(\s*([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*\)|([0-9][1-9]|[0-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9]))\s*(?:[.-]\s*)?)?([2-9]1[02-9]|[2-9][02-9]1|[2-9][02-9]{2})\s*(?:[.-]\s*)?([0-9]{4})(?:\s*(?:#|x\.?|ext\.?|extension)\s*(\d+))?'), w)
+        phone = re.findall(re.compile(r'(?:(?:\+?([1-9]|[0-9][0-9]|[0-9][0-9][0-9])\s*(?:[.-]\s*)?)?(?:\(\s*([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*\)|([0-9][1-9]|[0-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9]))\s*(?:[.-]\s*)?)?([2-9]1[02-9]|[2-9][02-9]1|[2-9][02-9]{2})\s*(?:[.-]\s*)?([0-9]{4}|[0-9]{3})(?:\s*(?:#|x\.?|ext\.?|extension)\s*(\d+))?'), w)
         if(phone):
             ph=""
             for x in phone[0]:
                 ph+=str(x)
-            break;
+            if(len(ph)>=10):
+                break;
     if phone:
         number = ''.join(phone[0])
         if len(number) > 10:
@@ -126,12 +139,12 @@ for f in files:
     print(f)
     for page in convert(f):
             text += ' ' + page
-    extract_name(text)
+    print("Name:"+extract_name(text))
     text = text.replace(',',' ')
     #Converting all the charachters in lower case
     text = text.lower()
     print("Phone : " +str(extract_mobile_number(text)))
     print("email : " +str(extract_email(text)))
-    print(extract_skills(text))
+#    print(extract_skills(text))
     print("\n")
 

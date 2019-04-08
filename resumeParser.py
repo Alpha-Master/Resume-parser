@@ -5,13 +5,23 @@ Created on Fri Mar 29 12:55:28 2019
 
 @author: ananthu
 """
-import io
+import io,os,subprocess
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.converter import TextConverter
 from pdfminer.layout import LAParams
 from pdfminer.pdfpage import PDFPage
 import pandas as pd
 
+from docx import Document
+#docx to text
+def convertDocxToText(path):
+    document = Document(path)
+    return "\n".join([para.text for para in document.paragraphs])
+#doc to text
+def getDocText(fileName):
+    extension="doc"
+    doc =subprocess.Popen(['antiword', fileName], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0], extension
+    return str(doc[0].decode('ascii', 'ignore'))
 #Function converting pdf to string
 def convert(fname):
     with open(fname, 'rb') as fh:
@@ -76,6 +86,7 @@ def extract_mobile_number(text):
     text = text.split("\n")
     for w in text:
         w= w.replace('·','-')
+        w= w.replace('-','')
         phone = re.findall(re.compile(r'(?:(?:\+?([1-9]|[0-9][0-9]|[0-9][0-9][0-9])\s*(?:[.-]\s*)?)?(?:\(\s*([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*\)|([0-9][1-9]|[0-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9]))\s*(?:[.-]\s*)?)?([2-9]1[02-9]|[2-9][02-9]1|[2-9][02-9]{2})\s*(?:[.-]\s*)?([0-9]{4}|[0-9]{3})(?:\s*(?:#|x\.?|ext\.?|extension)\s*(\d+))?'), w)
         if(phone):
             ph=""
@@ -98,15 +109,14 @@ def extract_email(email):
         except IndexError:
             return None
 
+# load pre-trained model
 
-def extract_skills(resume_text):
-    # load pre-trained model
-    nlp = spacy.load('en_core_web_sm')
-    nlp_text = nlp(resume_text)
+def extract_skills(nlp_text):
+    
     noun_chunks =nlp_text.noun_chunks
     # removing stop words and implementing word tokenization
     tokens = [token.text for token in nlp_text if not token.is_stop]
-    
+    #print(tokens)
     # reading the csv file
     data = pd.read_csv("skills.csv") 
     
@@ -128,23 +138,62 @@ def extract_skills(resume_text):
     
     return [i.capitalize() for i in set([i.lower() for i in skillset])]
 
-files=[]
-import glob, os
-os.chdir("./")
-for f in glob.glob("*.pdf"):
-    files.append(f)
 
+
+from nltk.corpus import stopwords
+
+def extract_education(nlp_text):
+    # Grad all general stop words
+    STOPWORDS = set(stopwords.words('english'))
+
+    # Education Degrees
+    EDUCATION = [
+            'BE','B.E.', 'B.E', 'BS', 'B.S', 
+            'ME', 'M.E', 'M.E.', 'MS', 'M.S', 
+            'BTECH', 'B.TECH','M.TECH', 'MTECH','TECH', 
+            'SSC', 'HSC', 'CBSE', 'ICSE', 'X', 'XII','ISC'
+            ]
+    st_words=['Be','be','me','Me']
+    # Sentence Tokenizer
+    nlp_text = [sent.string.strip() for sent in nlp_text.sents]
+    edu = set()
+    # Extract education degree
+    for index, text in enumerate(nlp_text):
+        
+        for tex in text.split():
+            # Replace all special symbols
+            tex = re.sub(r'[?|$|.|!|,]', r'', tex)
+            if tex.upper() in EDUCATION and tex.upper() not in STOPWORDS and tex not in st_words:
+                edu.add(tex.upper())
+    return list(edu)
+
+
+files=[]
+print(files)
+import glob
+os.chdir("./")
+files.extend(glob.glob("*.pdf"))
+files.extend(glob.glob("*.doc"))
+files.extend(glob.glob("*.docx"))
+print(files)
 for f in files:
     text=""
-    print(f)
-    for page in convert(f):
-            text += ' ' + page
+    #print(f)
+    extension=f.split(".")[1]
+    print(extension)
+    if(extension=="pdf"):
+        for page in convert(f):
+                text += ' ' + page
+    elif(extension=="doc"):
+        text=getDocText(f)
+    elif(extension=="docx"):
+        text=convertDocxToText(f)
     print("Name:"+extract_name(text))
-    text = text.replace(',',' ')
-    #Converting all the charachters in lower case
-    text = text.lower()
     print("Phone : " +str(extract_mobile_number(text)))
     print("email : " +str(extract_email(text)))
-#    print(extract_skills(text))
+    nlp = spacy.load('en_core_web_sm')
+    nlp_text = nlp(text)
+    print("Skills :"+str(extract_skills(nlp_text)))
+    print("Education :"+str(extract_education(nlp_text)))
     print("\n")
 

@@ -167,33 +167,27 @@ def extract_education(nlp_text):
                 edu.add(tex.upper())
     return list(edu)
 
-
-files=[]
-print(files)
-import glob
-os.chdir("./")
-files.extend(glob.glob("*.pdf"))
-files.extend(glob.glob("*.doc"))
-files.extend(glob.glob("*.docx"))
-print(files)
-for f in files:
+def resumeParse(filename,location):
+    files=[]
+    import glob
+    os.chdir(location)
     text=""
-    #print(f)
-    extension=f.split(".")[1]
-    print(extension)
+    extension=filename.split(".")[1]
     if(extension=="pdf"):
-        for page in convert(f):
-                text += ' ' + page
+        for page in convert(filename):
+            text += ' ' + page
     elif(extension=="doc"):
-        text=getDocText(f)
+        text=getDocText(filename)
     elif(extension=="docx"):
-        text=convertDocxToText(f)
-    print("Name:"+extract_name(text))
-    print("Phone : " +str(extract_mobile_number(text)))
-    print("email : " +str(extract_email(text)))
+        text=convertDocxToText(filename)
+    resume_data={}
+    resume_data["Name"]=extract_name(text)
+    resume_data["Phone"]=str(extract_mobile_number(text))
+    resume_data["Email"]=str(extract_email(text))
     nlp = spacy.load('en_core_web_sm')
     nlp_text = nlp(text)
-    print("Skills :"+str(extract_skills(nlp_text)))
-    print("Education :"+str(extract_education(nlp_text)))
-    print("\n")
+    resume_data["Skills"]=str(extract_skills(nlp_text))
+    resume_data["Education"]=str(extract_education(nlp_text))
+    print(resume_data["Name"]+"\n")
+    return resume_data
 
